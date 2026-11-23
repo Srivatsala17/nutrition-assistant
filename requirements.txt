@@ -9,3 +9,4 @@ streamlit
 sqlalchemy
 pymysql
 kagglehub
+langchain-groq
