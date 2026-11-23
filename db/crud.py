@@ -117,3 +117,9 @@ def get_weekly_summary(user_id):
         "target": get_user(user_id)["calorie_target"],
         "weight_history": get_weight_history(user_id, days=7),
     }
+
+
+def list_users():
+    with SessionLocal() as db:
+        rows = db.query(User).order_by(User.id).all()
+        return [{"id": u.id, "name": u.name} for u in rows]
