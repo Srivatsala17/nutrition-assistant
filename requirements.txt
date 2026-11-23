@@ -1,0 +1,10 @@
+python-dotenv
+pandas
+sentence-transformers
+chromadb
+langchain
+langchain-community
+langgraph
+streamlit
+sqlalchemy
+pymysql
