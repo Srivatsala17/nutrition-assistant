@@ -3,11 +3,14 @@ pandas
 sentence-transformers
 chromadb
 langchain
+langchain-core
 langchain-community
+langchain-groq
 langgraph
 streamlit
 sqlalchemy
 pymysql
-kagglehub
-langchain-groq
 cryptography
+transformers
+torch
+kagglehub
