@@ -1,5 +1,6 @@
 from langchain_core.tools import tool
 
+from core.food_extractor import extract_foods
 from core.vector_store import search_foods
 from db import crud
 
@@ -12,6 +13,18 @@ def make_tools(user_id: int):
     def is_safe(food):
         name = food["name"].lower()
         return not any(a in name for a in allergy_words)
+
+    def _log_one(food_name, servings, meal_type):
+        matches = [f for f in search_foods(food_name, k=5) if is_safe(f)]
+        if not matches:
+            return f"Could not find '{food_name}' in the database."
+        f = matches[0]
+        crud.log_meal(user_id, f["name"], f["calories"] * servings,
+                      f["protein"] * servings, f["carbs"] * servings,
+                      f["fat"] * servings, meal_type)
+        return (f"Logged {servings} x {f['name']} "
+                f"({round(f['calories'] * servings)} kcal) "
+                f"(source: {f['source']})")
 
     @tool
     def search_food_database(query: str, min_protein: float = 0,
@@ -39,21 +52,26 @@ def make_tools(user_id: int):
         )
 
     @tool
+    def log_meals_from_text(text: str, meal_type: str = "snack") -> str:
+        """Log everything the user says they ate, from their original sentence,
+        e.g. 'I had 2 rotis and dal tadka for lunch'. A fine-tuned transformer
+        extracts the foods and quantities, then each one is logged.
+        Pass the user's sentence exactly as written.
+        meal_type: breakfast, lunch, dinner or snack."""
+        items = extract_foods(text)
+        if not items:
+            return ("Could not detect foods in that sentence. "
+                    "Try the log_meal tool with a single food name.")
+        results = [_log_one(name, qty, meal_type) for qty, name in items]
+        return "Detected: " + str(items) + "\n" + "\n".join(results)
+
+    @tool
     def log_meal(food_name: str, servings: float = 1,
                  meal_type: str = "snack") -> str:
-        """Log food the user ate. Looks up nutrition automatically.
+        """Log ONE food the user ate when the food name is already known.
         servings: number of servings (e.g. 2 for '2 rotis').
         meal_type: breakfast, lunch, dinner or snack."""
-        matches = [f for f in search_foods(food_name, k=5) if is_safe(f)]
-        if not matches:
-            return f"Could not find '{food_name}' in the database."
-        f = matches[0]
-        crud.log_meal(user_id, f["name"], f["calories"] * servings,
-                      f["protein"] * servings, f["carbs"] * servings,
-                      f["fat"] * servings, meal_type)
-        return (f"Logged {servings} x {f['name']} "
-                f"({round(f['calories'] * servings)} kcal) "
-                f"(source: {f['source']})")
+        return _log_one(food_name, servings, meal_type)
 
     @tool
     def log_weight(weight_kg: float) -> str:
@@ -71,5 +89,5 @@ def make_tools(user_id: int):
         """Get the last 7 days of calories and weight, for progress questions."""
         return str(crud.get_weekly_summary(user_id))
 
-    return [search_food_database, log_meal, log_weight,
+    return [search_food_database, log_meals_from_text, log_meal, log_weight,
             get_remaining_calories, get_weekly_summary]
