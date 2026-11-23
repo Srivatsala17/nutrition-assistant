@@ -10,3 +10,4 @@ sqlalchemy
 pymysql
 kagglehub
 langchain-groq
+cryptography
